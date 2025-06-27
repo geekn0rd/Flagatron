@@ -1,6 +1,7 @@
-from database import Base
 from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, Table
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, Mapped, mapped_column
+
+from app.internal.database import Base
 
 # Association table for self-referencing relationship
 flag_dependencies_association = Table(
@@ -14,9 +15,9 @@ flag_dependencies_association = Table(
 class Flag(Base):
     __tablename__ = "flags"
 
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, index=True, unique=True, nullable=False)
-    is_active = Column(Boolean, default=False)
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    name: Mapped[str] = mapped_column(index=True, unique=True, nullable=False)
+    is_active: Mapped[bool] = mapped_column(default=False)
 
     dependencies = relationship(
         "Flag",
