@@ -3,11 +3,11 @@ from sqlalchemy.orm import Session
 from sqlalchemy import select
 from app.dependencies import get_db
 from app.internal.models import Flag
-from app.internal.schemas import FlagBase
+from app.internal.schemas import FlagBase, FlagInDB
 
 router = APIRouter()
 
-@router.get("/", response_model=list[FlagBase])
+@router.get("/", response_model=list[FlagInDB])
 def read_flags(session: Session = Depends(get_db)):
     flags = session.execute(select(Flag)).scalars().all()
     return flags
