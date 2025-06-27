@@ -6,12 +6,13 @@ from pydantic import BaseModel, Field
 class FlagBase(BaseModel):
     name: str = Field(..., description="The name of the flag.")
     is_active: bool = False
-    dependencies: List[int] = Field(
-        default_factory=list, description="List of IDs of flags this flag depends on."
+    dependencies: List["FlagBase"] = Field(
+        default_factory=list, description="List of flags this flag depends on."
     )
 
     class Config:
         from_attributes = True
+        orm_mode = True
 
 
 class FlagUpdate(FlagBase):
