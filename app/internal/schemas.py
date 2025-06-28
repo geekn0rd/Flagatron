@@ -27,4 +27,20 @@ class FlagResponse(BaseModel):
 class FlagToggle(BaseModel):
     is_active: Optional[bool] = None
 
- 
+
+class NestedFlagResponse(BaseModel):
+    id: int = Field(..., description="The unique identifier of the flag.")
+    name: str = Field(..., description="The name of the flag.")
+    is_active: bool = False
+    dependencies: list['NestedFlagResponse'] = Field(
+        default_factory=list,
+        description="List of flags this flag depends on with their full details."
+    )
+
+    class Config:
+        from_attributes = True
+        orm_mode = True
+
+
+# This is needed for the self-referencing model
+NestedFlagResponse.model_rebuild()

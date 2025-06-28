@@ -1,7 +1,7 @@
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 from app.internal.models import Flag
-from app.internal.schemas import FlagBody, FlagResponse
+from app.internal.schemas import FlagBody, FlagResponse, NestedFlagResponse
 
 
 def has_circular_dependency(flag_id: int, dependencies: list[int], db: Session) -> bool:
@@ -120,4 +120,27 @@ def flag_to_response(flag: Flag) -> FlagResponse:
         name=flag.name,
         is_active=flag.is_active,
         dependencies=[dep.id for dep in flag.dependencies],
-    ) 
+    )
+
+
+def flag_to_nested_response(flag: Flag) -> NestedFlagResponse:
+    """
+    Converts a Flag model to NestedFlagResponse schema with full dependency details.
+    """
+    return NestedFlagResponse(
+        id=flag.id,
+        name=flag.name,
+        is_active=flag.is_active,
+        dependencies=[flag_to_nested_response(dep) for dep in flag.dependencies],
+    )
+
+
+def get_flag_by_id_service(flag_id: int, db: Session) -> Flag:
+    """
+    Gets a flag by ID with all dependencies loaded.
+    Raises HTTPException if flag is not found.
+    """
+    flag = db.query(Flag).filter(Flag.id == flag_id).first()
+    if not flag:
+        raise HTTPException(status_code=404, detail="Flag not found.")
+    return flag 
