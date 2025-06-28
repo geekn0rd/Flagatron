@@ -53,7 +53,13 @@ def check_no_dependent_flags(flag_id: int, db: Session) -> None:
         Flag.is_active == True
     ).all()
     if dependent_flags:
-        raise HTTPException(status_code=400, detail="Cannot deactivate: other active flags depend on this flag.")
+        flag_names = [flag.name for flag in dependent_flags]
+        if len(flag_names) == 1:
+            detail = f"Cannot deactivate: flag '{flag_names[0]}' depends on this flag."
+        else:
+            names_str = "', '".join(flag_names)
+            detail = f"Cannot deactivate: flags '{names_str}' depend on this flag."
+        raise HTTPException(status_code=400, detail=detail)
 
 
 def create_flag_service(flag_in: FlagBody, db: Session) -> Flag:
