@@ -1,12 +1,20 @@
-from typing import List, Optional
+from typing import Optional
 
 from pydantic import BaseModel, Field
 
 
-class FlagBase(BaseModel):
+class FlagBody(BaseModel):
+    name: str = Field(..., description="The name of the flag.")
+    dependencies: list[int] = Field(
+        default_factory=list, description="List of flag ids this flag depends on."
+    )
+
+
+class FlagResponse(BaseModel):
+    id: int = Field(..., description="The unique identifier of the flag.")
     name: str = Field(..., description="The name of the flag.")
     is_active: bool = False
-    dependencies: List["FlagBase"] = Field(
+    dependencies: list["FlagResponse"] = Field(
         default_factory=list, description="List of flags this flag depends on."
     )
 
@@ -15,11 +23,7 @@ class FlagBase(BaseModel):
         orm_mode = True
 
 
-class FlagUpdate(FlagBase):
-    name: Optional[str] = None
+class FlagToggle(BaseModel):
     is_active: Optional[bool] = None
-    dependencies: Optional[List[int]] = None
 
-
-class FlagInDB(FlagBase):
-    id: int = Field(..., description="The unique identifier of the flag.")
+ 
