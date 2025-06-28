@@ -14,8 +14,9 @@ class FlagResponse(BaseModel):
     id: int = Field(..., description="The unique identifier of the flag.")
     name: str = Field(..., description="The name of the flag.")
     is_active: bool = False
-    dependencies: list["FlagResponse"] = Field(
-        default_factory=list, description="List of flags this flag depends on."
+    dependencies: list[int] = Field(
+        default_factory=list,
+        description="List of flag IDs this flag depends on."
     )
 
     class Config:
