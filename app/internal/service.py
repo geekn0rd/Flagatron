@@ -1,7 +1,36 @@
+import json
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
-from app.internal.models import Flag
+from app.internal.models import Flag, AuditLog
 from app.internal.schemas import FlagBody, FlagResponse, NestedFlagResponse
+
+
+def log_audit_event(
+    db: Session,
+    flag_id: int,
+    flag_name: str,
+    operation: str,
+    previous_state: dict = None,
+    new_state: dict = None,
+    reason: str = None,
+    actor: str = None
+) -> AuditLog:
+    """
+    Creates an audit log entry for a flag operation.
+    """
+    audit_log = AuditLog(
+        flag_id=flag_id,
+        flag_name=flag_name,
+        operation=operation,
+        previous_state=json.dumps(previous_state) if previous_state else None,
+        new_state=json.dumps(new_state) if new_state else None,
+        reason=reason,
+        actor=actor
+    )
+    db.add(audit_log)
+    db.commit()
+    db.refresh(audit_log)
+    return audit_log
 
 
 def has_circular_dependency(flag_id: int, dependencies: list[int], db: Session) -> bool:
@@ -62,7 +91,7 @@ def check_no_dependent_flags(flag_id: int, db: Session) -> None:
         raise HTTPException(status_code=400, detail=detail)
 
 
-def create_flag_service(flag_in: FlagBody, db: Session) -> Flag:
+def create_flag_service(flag_in: FlagBody, db: Session, actor: str = None) -> Flag:
     """
     Creates a new flag with validation for duplicates and circular dependencies.
     """
@@ -86,10 +115,26 @@ def create_flag_service(flag_in: FlagBody, db: Session) -> Flag:
     db.add(new_flag)
     db.commit()
     db.refresh(new_flag)
+    
+    # Log the creation
+    log_audit_event(
+        db=db,
+        flag_id=new_flag.id,
+        flag_name=new_flag.name,
+        operation="create",
+        new_state={
+            "name": new_flag.name,
+            "is_active": new_flag.is_active,
+            "dependencies": [dep.id for dep in new_flag.dependencies]
+        },
+        reason="Flag created",
+        actor=actor
+    )
+    
     return new_flag
 
 
-def toggle_flag_service(flag_id: int, db: Session) -> Flag:
+def toggle_flag_service(flag_id: int, db: Session, actor: str = None) -> Flag:
     """
     Toggles a flag's active state with dependency validation.
     """
@@ -97,17 +142,90 @@ def toggle_flag_service(flag_id: int, db: Session) -> Flag:
     if not flag_db:
         raise HTTPException(status_code=404, detail="Flag not found.")
     
+    # Capture previous state for audit log
+    previous_state = {
+        "name": flag_db.name,
+        "is_active": flag_db.is_active,
+        "dependencies": [dep.id for dep in flag_db.dependencies]
+    }
+    
     if flag_db.is_active == False:
         # Activating: check that all dependencies are active
         check_dependencies_active(flag_db)
         flag_db.is_active = True
+        operation = "activate"
+        reason = "Flag manually activated"
     else:
         # Deactivating: check that no other active flag depends on this one
         check_no_dependent_flags(flag_id, db)
         flag_db.is_active = False
+        operation = "deactivate"
+        reason = "Flag manually deactivated"
 
     db.commit()
     db.refresh(flag_db)
+    
+    # Log the toggle operation
+    new_state = {
+        "name": flag_db.name,
+        "is_active": flag_db.is_active,
+        "dependencies": [dep.id for dep in flag_db.dependencies]
+    }
+    
+    log_audit_event(
+        db=db,
+        flag_id=flag_db.id,
+        flag_name=flag_db.name,
+        operation=operation,
+        previous_state=previous_state,
+        new_state=new_state,
+        reason=reason,
+        actor=actor
+    )
+    
+    return flag_db
+
+
+def auto_disable_flag_service(flag_id: int, db: Session, reason: str = None) -> Flag:
+    """
+    Automatically disables a flag (e.g., when dependencies become inactive).
+    """
+    flag_db = db.query(Flag).filter(Flag.id == flag_id).first()
+    if not flag_db:
+        raise HTTPException(status_code=404, detail="Flag not found.")
+    
+    if not flag_db.is_active:
+        return flag_db  # Already inactive
+    
+    # Capture previous state for audit log
+    previous_state = {
+        "name": flag_db.name,
+        "is_active": flag_db.is_active,
+        "dependencies": [dep.id for dep in flag_db.dependencies]
+    }
+    
+    flag_db.is_active = False
+    db.commit()
+    db.refresh(flag_db)
+    
+    # Log the auto-disable operation
+    new_state = {
+        "name": flag_db.name,
+        "is_active": flag_db.is_active,
+        "dependencies": [dep.id for dep in flag_db.dependencies]
+    }
+    
+    log_audit_event(
+        db=db,
+        flag_id=flag_db.id,
+        flag_name=flag_db.name,
+        operation="auto-disable",
+        previous_state=previous_state,
+        new_state=new_state,
+        reason=reason or "Flag automatically disabled due to dependency changes",
+        actor="system"
+    )
+    
     return flag_db
 
 
@@ -143,4 +261,29 @@ def get_flag_by_id_service(flag_id: int, db: Session) -> Flag:
     flag = db.query(Flag).filter(Flag.id == flag_id).first()
     if not flag:
         raise HTTPException(status_code=404, detail="Flag not found.")
-    return flag 
+    return flag
+
+
+def get_audit_logs_service(
+    db: Session,
+    flag_id: int = None,
+    operation: str = None,
+    actor: str = None,
+    limit: int = 100,
+    offset: int = 0
+) -> list[AuditLog]:
+    """
+    Retrieves audit logs with optional filtering.
+    """
+    query = db.query(AuditLog)
+    
+    if flag_id:
+        query = query.filter(AuditLog.flag_id == flag_id)
+    
+    if operation:
+        query = query.filter(AuditLog.operation == operation)
+    
+    if actor:
+        query = query.filter(AuditLog.actor == actor)
+    
+    return query.order_by(AuditLog.timestamp.desc()).offset(offset).limit(limit).all() 

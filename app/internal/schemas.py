@@ -1,5 +1,5 @@
 from typing import Optional
-
+from datetime import datetime
 from pydantic import BaseModel, Field
 
 
@@ -44,3 +44,29 @@ class NestedFlagResponse(BaseModel):
 
 # This is needed for the self-referencing model
 NestedFlagResponse.model_rebuild()
+
+
+class AuditLogCreate(BaseModel):
+    flag_id: int = Field(..., description="The ID of the flag being audited.")
+    flag_name: str = Field(..., description="The name of the flag being audited.")
+    operation: str = Field(..., description="The operation performed (create, toggle, auto-disable, etc.).")
+    previous_state: Optional[str] = Field(None, description="JSON string of the previous state.")
+    new_state: Optional[str] = Field(None, description="JSON string of the new state.")
+    reason: Optional[str] = Field(None, description="Human-readable reason for the operation.")
+    actor: Optional[str] = Field(None, description="Who performed the action.")
+
+
+class AuditLogResponse(BaseModel):
+    id: int = Field(..., description="The unique identifier of the audit log entry.")
+    flag_id: int = Field(..., description="The ID of the flag being audited.")
+    flag_name: str = Field(..., description="The name of the flag being audited.")
+    operation: str = Field(..., description="The operation performed.")
+    previous_state: Optional[str] = Field(None, description="JSON string of the previous state.")
+    new_state: Optional[str] = Field(None, description="JSON string of the new state.")
+    reason: Optional[str] = Field(None, description="Human-readable reason for the operation.")
+    actor: Optional[str] = Field(None, description="Who performed the action.")
+    timestamp: datetime = Field(..., description="When the operation occurred.")
+
+    class Config:
+        from_attributes = True
+        orm_mode = True

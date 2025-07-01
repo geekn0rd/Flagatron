@@ -6,7 +6,7 @@ Easily manage feature flags with dependency validation, circular dependency dete
 
 - 🔗 Flag dependency validation
 - ♻️ Circular dependency detection
-- 📝 Audit log with actor, reason & timestamps
+- 📝 Comprehensive audit logging with timestamps, reasons, and actor information
 - 🧰 REST API for flag control & status
 - 🐳 Fully Dockerized with docker-compose
 - 🧪 One-command test suite inside Docker
@@ -40,3 +40,73 @@ Easily manage feature flags with dependency validation, circular dependency dete
    ```
 
 The application will automatically set up the PostgreSQL database and run database migrations on startup.
+
+## 📝 Audit Logging
+
+The service includes comprehensive audit logging that tracks all flag operations:
+
+### Audit Log Fields
+- **flag_id**: The ID of the flag being operated on
+- **flag_name**: The name of the flag for easy identification
+- **operation**: The type of operation (create, activate, deactivate, auto-disable)
+- **previous_state**: JSON representation of the flag's state before the operation
+- **new_state**: JSON representation of the flag's state after the operation
+- **reason**: Human-readable reason for the operation
+- **actor**: Who performed the action (user ID, system, etc.)
+- **timestamp**: When the operation occurred
+
+### Audit Log Endpoints
+
+#### Get All Audit Logs
+```bash
+GET /flags/audit-logs/
+```
+
+Query Parameters:
+- `flag_id` (optional): Filter by specific flag ID
+- `operation` (optional): Filter by operation type
+- `actor` (optional): Filter by actor
+- `limit` (default: 100): Maximum number of logs to return
+- `offset` (default: 0): Number of logs to skip
+
+#### Get Audit Logs for Specific Flag
+```bash
+GET /flags/{flag_id}/audit-logs/
+```
+
+Query Parameters:
+- `operation` (optional): Filter by operation type
+- `actor` (optional): Filter by actor
+- `limit` (default: 100): Maximum number of logs to return
+- `offset` (default: 0): Number of logs to skip
+
+### Adding Actor Information
+
+When creating or toggling flags, you can include actor information:
+
+```bash
+# Create flag with actor
+POST /flags/?actor=user123
+{
+  "name": "new-feature",
+  "dependencies": [1, 2]
+}
+
+# Toggle flag with actor
+PATCH /flags/toggle/1?actor=admin
+```
+
+### Automatic Logging
+
+The system automatically logs:
+- Flag creation
+- Manual flag activation/deactivation
+- Automatic flag disabling (when dependencies become inactive)
+
+## Running Tests
+
+To run all unit tests inside the Docker environment:
+
+```sh
+docker-compose run --rm test
+```
