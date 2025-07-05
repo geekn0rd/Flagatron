@@ -56,34 +56,65 @@ The service includes comprehensive audit logging that tracks all flag operations
 - **actor**: Who performed the action (user ID, system, etc.)
 - **timestamp**: When the operation occurred
 
-### Audit Log Endpoints
+## 🚩 API Endpoints
+
+### Flag Management
+
+#### Get All Flags
+```bash
+GET /flags/
+```
+Returns a list of all flags with their basic information.
+
+#### Get Flag by ID
+```bash
+GET /flags/{flag_id}
+```
+Returns detailed information about a specific flag, including nested dependency information.
+
+#### Create Flag
+```bash
+POST /flags/
+```
+Creates a new feature flag.
+
+**Request Body:**
+```json
+{
+  "name": "new-feature",
+  "dependencies": [1, 2]
+}
+```
+
+**Query Parameters:**
+- `actor` (optional): Who is performing the operation (for audit logging)
+
+#### Toggle Flag
+```bash
+PATCH /flags/toggle/{flag_id}
+```
+Toggles the active state of a flag (activates if inactive, deactivates if active).
+
+**Query Parameters:**
+- `actor` (optional): Who is performing the operation (for audit logging)
+
+### Audit Logging
 
 #### Get All Audit Logs
 ```bash
 GET /flags/audit-logs/
 ```
 
-Query Parameters:
+**Query Parameters:**
 - `flag_id` (optional): Filter by specific flag ID
 - `operation` (optional): Filter by operation type
 - `actor` (optional): Filter by actor
-- `limit` (default: 100): Maximum number of logs to return
-- `offset` (default: 0): Number of logs to skip
-
-#### Get Audit Logs for Specific Flag
-```bash
-GET /flags/{flag_id}/audit-logs/
-```
-
-Query Parameters:
-- `operation` (optional): Filter by operation type
-- `actor` (optional): Filter by actor
-- `limit` (default: 100): Maximum number of logs to return
+- `limit` (default: 100, max: 1000): Maximum number of logs to return
 - `offset` (default: 0): Number of logs to skip
 
 ### Adding Actor Information
 
-When creating or toggling flags, you can include actor information:
+When creating or toggling flags, you can include actor information for audit logging:
 
 ```bash
 # Create flag with actor
