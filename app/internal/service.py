@@ -37,18 +37,51 @@ def has_circular_dependency(flag_id: int, dependencies: list[int], db: Session) 
     """
     Returns True if adding any of the dependencies would create a circular dependency for flag_id.
     """
+    # Check for direct self-reference
+    if flag_id in dependencies:
+        return True
+    
+    # Check for circular dependencies through the dependency chain
     visited = set()
     stack = list(dependencies)
     while stack:
         current_id = stack.pop()
-        if current_id == flag_id:
-            return True
         if current_id in visited:
             continue
         visited.add(current_id)
         current_flag = db.query(Flag).filter(Flag.id == current_id).first()
         if current_flag:
-            stack.extend([dep.id for dep in current_flag.dependencies])
+            # Check if any of the current flag's dependencies would create a cycle
+            for dep in current_flag.dependencies:
+                if dep.id == flag_id:
+                    return True
+                stack.append(dep.id)
+    
+    # Check for redundant dependencies (e.g., if flagC depends on both flagB and flagA,
+    # but flagB already depends on flagA, this creates redundant paths)
+    direct_deps = set(dependencies)
+    indirect_deps = set()
+    
+    for dep_id in dependencies:
+        dep_flag = db.query(Flag).filter(Flag.id == dep_id).first()
+        if dep_flag:
+            # Get all transitive dependencies
+            stack = [dep_flag]
+            visited_transitive = set()
+            while stack:
+                current = stack.pop()
+                if current.id in visited_transitive:
+                    continue
+                visited_transitive.add(current.id)
+                for transitive_dep in current.dependencies:
+                    indirect_deps.add(transitive_dep.id)
+                    stack.append(transitive_dep)
+    
+    # If any direct dependency is also reachable through other dependencies, it's redundant
+    redundant_deps = direct_deps.intersection(indirect_deps)
+    if redundant_deps:
+        return True
+    
     return False
 
 
