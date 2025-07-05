@@ -108,5 +108,5 @@ The system automatically logs:
 To run all unit tests inside the Docker environment:
 
 ```sh
-docker docker compose run --rm test
+   docker compose run --rm test
 ```
