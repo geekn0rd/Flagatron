@@ -26,8 +26,11 @@ services:
       - .env
 
   test:
+    profiles:
+      - test
     build: .
-    command: pytest
+    command: ["bash", "-c", "source /app/.venv/bin/activate && pytest"]
+
     volumes:
       - .:/app
     depends_on:

@@ -1,38 +1,3 @@
-import pytest
-from fastapi.testclient import TestClient
-from app.main import app
-from app.internal import database
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from app.internal.models import Base
-
-# Use an in-memory SQLite database for testing
-SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
-engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
-TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-@pytest.fixture(scope="function")
-def db_session():
-    Base.metadata.create_all(bind=engine)
-    db = TestingSessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-        Base.metadata.drop_all(bind=engine)
-
-@pytest.fixture(scope="function")
-def client(db_session, monkeypatch):
-    # Patch the get_db dependency to use the test DB
-    def override_get_db():
-        try:
-            yield db_session
-        finally:
-            pass
-    app.dependency_overrides[database.get_db] = override_get_db
-    with TestClient(app) as c:
-        yield c
-
 # 1. Creates a flag without dependencies.
 def test_create_flag_without_dependencies(client):
     response = client.post("/flags/", json={"name": "flag1", "dependencies": []})
