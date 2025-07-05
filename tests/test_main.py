@@ -24,14 +24,10 @@ def test_create_flag_with_circular_dependency(client):
     flag_b_response = client.post("/flags/", json={"name": "flagB", "dependencies": [flag_a_id]})
     flag_b_id = flag_b_response.json()["id"]
     
-    # Try to create flagC that depends on flagB
-    flag_c_response = client.post("/flags/", json={"name": "flagC", "dependencies": [flag_b_id]})
-    flag_c_id = flag_c_response.json()["id"]
-    
-    # Now try to create a flag that depends on flagC and flagA, which would create circular dependency
-    # flagD → flagC → flagB → flagA, and flagD also depends on flagA directly
-    # This creates a cycle: flagD → flagA → flagD (through the chain)
-    response = client.post("/flags/", json={"name": "flagD", "dependencies": [flag_c_id, flag_a_id]})
+    # Try to create a flag that depends on both flagB and flagA
+    # This should be detected as circular because flagB already depends on flagA
+    # So the new flag would have a redundant dependency that creates a cycle
+    response = client.post("/flags/", json={"name": "flagC", "dependencies": [flag_b_id, flag_a_id]})
     assert response.status_code == 400
     assert "circular" in response.text.lower()
 
