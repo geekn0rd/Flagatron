@@ -12,6 +12,19 @@ services:
     ports:
       - "5432:5432"
 
+  db_test:
+    container_name: flagatron-db-test
+    image: postgres:16-alpine
+    restart: always
+    environment:
+      POSTGRES_DB: ${POSTGRES_TEST_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_test_data:/var/lib/postgresql/data
+
   app:
     container_name: flagatron-app
     build: .
@@ -29,12 +42,16 @@ services:
     profiles:
       - test
     build: .
-    command: ["bash", "-c", "source /app/.venv/bin/activate && pytest"]
-
+    command: ["pytest"]
     volumes:
       - .:/app
     depends_on:
-      - db
+      - db_test
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db_test:5432/${POSTGRES_TEST_DB}
+    env_file:
+      - .env
 
 volumes:
   postgres_data:
+  postgres_test_data:
