@@ -21,6 +21,7 @@ Easily manage feature flags with dependency validation, circular dependency dete
 1. **Create a `.env` file** in the root directory with the following environment variables:
    ```env
    POSTGRES_DB=flagatron
+   POSTGRES_TEST_DB=test_db
    POSTGRES_USER=flagatron_user
    POSTGRES_PASSWORD=your_secure_password_here
    ```
@@ -108,5 +109,5 @@ The system automatically logs:
 To run all unit tests inside the Docker environment:
 
 ```sh
-   docker compose run --rm test
+docker compose run --rm test
 ```
